@@ -6,7 +6,7 @@ import json
 
 import pandas
 import pprint
-
+from operator import itemgetter
 
 ####################################################################################################
 def send_sms_flowroute(my_sender, my_receiver, text):
@@ -55,7 +55,7 @@ def create_list_of_dicts_from_xls(xls_file):
             my_entry = {}
             for j in df_dict.keys():
                 my_entry[j] = df_dict[j][i]
-                all_entries.append(my_entry)
+            all_entries.append(my_entry)
 
         return all_entries
 
@@ -67,6 +67,7 @@ def create_list_of_dicts_from_xls(xls_file):
 ####################################################################################################
 def normalize_shoretel_entries(all_entries):
 
+    new_all_entries = []
     try:
         for entry in all_entries:
             if str(entry['First Name']) == "nan":
@@ -74,6 +75,9 @@ def normalize_shoretel_entries(all_entries):
 
             if str(entry['Last Name']) == "nan":
                 entry['Last Name'] = ""
+
+            if str(entry['Site']) == "nan":
+                entry['Site'] = ""
 
             try:
                 entry['Ext'] = int(entry['Ext'])
@@ -85,12 +89,11 @@ def normalize_shoretel_entries(all_entries):
             except:
                 entry['DID'] = ""
 
-            try:
-                entry['Site'] = int(entry['Site'])
-            except:
-                entry['Site'] = ""
+        for entry in all_entries:
+            if entry['Type'] == "User Extension" or entry['Type'] == "Hunt Group":
+                new_all_entries.append(entry)
 
-        return all_entries
+        return new_all_entries
 
     except Exception as ex:
         print("normalize_shoretel_entries exception: ", ex)
@@ -98,4 +101,35 @@ def normalize_shoretel_entries(all_entries):
 
 
 ####################################################################################################
+def create_xls_from_list_of_dicts(list_of_dicts):
+
+    try:
+        list_of_dicts_ordered = sorted(list_of_dicts, key=itemgetter('Site', 'Ext'))
+        for dict in list_of_dicts_ordered:
+            print(dict)
+
+        # Create Pandas Dataframe
+        my_length = len(list_of_dicts_ordered)
+        excel_dict = {}
+        excel_dict['Site'] = []
+        excel_dict['Extension'] = []
+        excel_dict['First Name'] = []
+        excel_dict['Last Name'] = []
+        excel_dict['DID'] = []
+        for i in range(my_length):
+            excel_dict['Site'].append(list_of_dicts_ordered[i]['Site'])
+            excel_dict['Extension'].append(list_of_dicts_ordered[i]['Ext'])
+            excel_dict['First Name'].append(list_of_dicts_ordered[i]['First Name'])
+            excel_dict['Last Name'].append(list_of_dicts_ordered[i]['Last Name'])
+            excel_dict['DID'].append(list_of_dicts_ordered[i]['DID'])
+
+        pprint.pprint(excel_dict)
+        df = pandas.DataFrame(excel_dict)
+        writer = pandas.ExcelWriter('demo.xlsx', engine='xlsxwriter')
+        df.to_excel(writer, sheet_name='Sheet1', index=False)
+        writer.save()
+
+    except Exception as ex:
+        print("create_xls_from_list_of_dicts exception: ", ex)
+        raise Exception(ex)
 
